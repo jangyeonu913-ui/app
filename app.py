@@ -10,13 +10,13 @@ from sklearn.metrics import r2_score, mean_absolute_error
 st.set_page_config(page_title="서울시 따릉이 대여건수 예측", page_icon="🚲", layout="wide")
 
 st.title("🚲 날씨 기반 서울시 공공자전거(따릉이) 일별 대여건수 예측")
-st.markdown("2026년 상반기 기상 데이터(기온, 강수량, 습도)와 요일 정보를 학습한 **다중 선형회귀(Linear Regression)** 모델입니다.")
+st.markdown("상반기 기상 데이터(기온, 강수량, 습도)와 요일 정보를 학습한 **다중 선형회귀(Linear Regression)** 모델입니다.")
 
-# 1. 데이터 로드 및 전처리 함수
+# 1. 데이터 로드 및 전처리 함수 (파일명을 간결한 영문으로 고정)
 @st.cache_data
 def load_and_merge_data():
-    bike_file = "서울특별시 공공자전거 일별 대여건수_26.1-6 (3).csv"
-    weather_file = "OBS_ASOS_DD_20261110154503 (1).csv"
+    bike_file = "bike.csv"
+    weather_file = "weather.csv"
     
     df_bike = pd.read_csv(bike_file, encoding="cp949")
     df_weather = pd.read_csv(weather_file, encoding="cp949")
@@ -38,7 +38,7 @@ def load_and_merge_data():
 try:
     df = load_and_merge_data()
 except Exception as e:
-    st.error(f"데이터 파일을 불러오는 중 오류가 발생했습니다. 깃허브에 CSV 파일이 함께 올라가 있는지 확인하세요.\n오류 내용: {e}")
+    st.error(f"데이터 파일을 불러오는 중 오류가 발생했습니다. 깃허브에 bike.csv와 weather.csv 파일이 잘 올라가 있는지 확인하세요.\n오류 내용: {e}")
     st.stop()
 
 # 2. 선형회귀 모델 학습
@@ -64,7 +64,7 @@ is_weekend = st.sidebar.radio("요일 구분", options=["평일", "주말"])
 
 weekend_val = 1 if is_weekend == "주말" else 0
 input_data = pd.DataFrame([[temp, rain, humidity, weekend_val]], columns=features)
-predicted_rentals = max(0, int(model.predict(input_data)[0]))  # 음수 방지
+predicted_rentals = max(0, int(model.predict(input_data)[0]))
 
 # 4. 메인 화면: 예측 결과 및 모델 성능 지표
 col1, col2, col3 = st.columns(3)
@@ -84,8 +84,6 @@ with left_col:
         x="평균기온(°C)",
         y="대여건수",
         color="구분",
-        trendline="ols",
-        hover_data=["대여일자", "일강수량(mm)", "평균 상대습도(%)"],
         labels={"대여건수": "일별 대여건수 (건)"}
     )
     st.plotly_chart(fig1, use_container_width=True)
@@ -105,12 +103,10 @@ with right_col:
     fig2.update_layout(xaxis_title="실제 대여건수 (건)", yaxis_title="예측 대여건수 (건)")
     st.plotly_chart(fig2, use_container_width=True)
 
-# 6. 회귀계수(영향력) 해석 및 원본 데이터 보기
-with st.expander("🔍 선형회귀 모델의 변수별 영향력(가중치) 및 데이터 확인"):
+# 6. 회귀계수 확인
+with st.expander("🔍 선형회귀 모델의 변수별 영향력(가중치) 확인"):
     coef_df = pd.DataFrame({
         "변수명": features,
         "회귀계수 (가중치)": [round(c, 1) for c in model.coef_]
     })
     st.dataframe(coef_df, use_container_width=True)
-    st.caption("※ 기온이 1°C 오를 때마다 대여건수가 약 3,546건 증가하고, 비가 오거나 주말(출퇴근 수요 감소)일 때는 대여건수가 감소하는 경향을 보입니다.")
-    st.dataframe(df[["대여일자", "구분", "평균기온(°C)", "일강수량(mm)", "평균 상대습도(%)", "대여건수"]].head(20), use_container_width=True)
